@@ -20,6 +20,31 @@ public class NodeEditorWindow : EditorWindow
     private bool isLineMode = false;   //是否是画线模式
     private InputNode selectNode = null;
 
+
+	/// <summary>
+	/// 画布尺寸
+	/// </summary>
+	/// <value>The max scale.</value>
+	protected virtual int _maxCanvasScale{
+		get{return 1000;}
+	}
+
+	Vector2 _offset = Vector2.zero;
+
+	/// <summary>
+	/// 画布偏移位置
+	/// </summary>
+	/// <value>The offset.</value>
+	protected Vector2 _canvasOffset{
+		get{ return _offset; }
+		set{ 
+			_offset = value; 
+			_offset.x = Mathf.Clamp (_offset.x,-_maxCanvasScale,0);
+			_offset.y = Mathf.Clamp (_offset.y,-_maxCanvasScale,0);
+		}
+	}
+
+
     [MenuItem("Window/Calac")]
     public static void OpenWindow()
     {
@@ -78,31 +103,84 @@ public class NodeEditorWindow : EditorWindow
                 isLineMode = false;
             }
         }
+		if (_curevent.type == EventType.MouseDrag && _curevent.button == 2) 
+		{
+			_canvasOffset+=_curevent.delta;
+			Event.current.Use();
+		}
+
         
 
-        if (isLineMode)
-        {
-            DrawBezier(selectNode.nodeRect.center, _curevent.mousePosition);
-            Repaint();
-        }
+       
 
-        //维护画线功能  
+		if (_curevent.type == EventType.Repaint) 
+		{
+			GUIStyle style = "flow background";
+			Rect scaledCanvasSize = new Rect(100,20,Screen.width - 100,Screen.height - 20);
+			style.Draw(scaledCanvasSize, false, false, false, false);
+			GL.PushMatrix();
+			GL.Begin(1);
+			Color gridMinorColor = EditorGUIUtility.isProSkin? new Color(0f, 0f, 0f, 0.18f):new Color(0f, 0f, 0f, 0.1f);
+			Color gridMajorColor = EditorGUIUtility.isProSkin? new Color(0f, 0f, 0f, 0.28f):new Color(0f, 0f, 0f, 0.15f);
+			this.DrawGridLines(scaledCanvasSize,12, _canvasOffset, gridMinorColor);
+			this.DrawGridLines(scaledCanvasSize,120, _canvasOffset, gridMajorColor);
+			GL.End();
+			GL.PopMatrix();
+		}
+
+		if (isLineMode)
+		{
+			DrawBezier(selectNode.nodeRect.center, _curevent.mousePosition);
+			Repaint();
+		}
+
+		//维护画线功能  
+		for (int i = 0; i < _nodes.Count; i++)
+		{
+			_nodes[i].DrawBezier();
+		}
+//		new Rect(_leftPanelWidth,EditorStyles.toolbar.fixedHeight,Screen.width - widthleft - widthright,Screen.height-EditorStyles.toolbar.fixedHeight)
+		GUILayout.BeginArea(new Rect(100,20,Screen.width - 100,Screen.height - 20));
+		BeginWindows(); //开始绘制弹出窗口  
+
         for (int i = 0; i < _nodes.Count; i++)
         {
-            _nodes[i].DrawBezier();
+			Rect rt = _nodes [i].nodeRect;
+			rt.x += _canvasOffset.x;
+			rt.y += _canvasOffset.y;
+			rt = GUI.Window(i, rt , DrawChildNode, _nodes[i].nodeName);
+			rt.x -= _canvasOffset.x;
+			rt.y -= _canvasOffset.y;
+			if (rt.x < 0)
+				rt.x = 0;
+			if (rt.y < 0)
+				rt.y = 0;
+			_nodes [i].nodeRect = rt;
+
         }
-
-        BeginWindows(); //开始绘制弹出窗口  
-
-        for (int i = 0; i < _nodes.Count; i++)
-        {
-            _nodes[i].nodeRect = GUI.Window(i, _nodes[i].nodeRect, DrawChildNode, _nodes[i].nodeName);
-        }
-
         EndWindows();//结束绘制弹出窗口
-
-
+		GUILayout.EndArea();
     }
+
+	void DrawGridLines(Rect rect,float gridSize,Vector2 _offset, Color gridColor)
+	{
+		_offset *= 1;
+		GL.Color(gridColor);
+		for (float i = rect.x+(_offset.x<0f?gridSize:0f) + _offset.x % gridSize ; i < rect.x + rect.width; i = i + gridSize)
+		{
+			DrawLine(new Vector2(i, rect.y), new Vector2(i, rect.y + rect.height));
+		}
+		for (float j = rect.y+(_offset.y<0f?gridSize:0f) + _offset.y % gridSize; j < rect.y + rect.height; j = j + gridSize)
+		{
+			DrawLine(new Vector2(rect.x, j), new Vector2(rect.x + rect.width, j));
+		}
+	}
+
+	void DrawLine(Vector2 p1, Vector2 p2)
+	{
+		GL.Vertex(p1);
+		GL.Vertex(p2);
+	}
 
     void DrawChildNode(int id)
     {
@@ -168,13 +246,13 @@ public class NodeEditorWindow : EditorWindow
     {
         Vector3 startTan = start + Vector3.right * 50;
         Vector3 endTan = end + Vector3.left * 50;
-        Color shadow = new Color(0, 0, 0, 0.7f);
+        Color shadow = new Color(1, 1, 1, 0.7f);
 
         for (int i = 0; i < 2; i++)
         {
             Handles.DrawBezier(start, end, startTan, endTan, shadow, null, 1 + (i * 2));
         }
-        Handles.DrawBezier(start, end, startTan, endTan, Color.black, null, 1);
+		Handles.DrawBezier(start, end, startTan, endTan, Color.white, null, 1);
     }
 
 }

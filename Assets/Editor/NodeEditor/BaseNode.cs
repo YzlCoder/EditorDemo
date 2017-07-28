@@ -114,8 +114,12 @@ public class OutputNode : BaseNode
     {
 		if(_handle[0].node != null)
         {
-			_parent.DrawBezier(_handle[0].node.nodeRect.center, 
-				new Vector2(_handle[0].area.xMin, _handle[0].area.center.y) + nodeRect.position);
+			Vector3 end = new Vector2 (_handle [0].area.xMin - 15, _handle [0].area.center.y) + nodeRect.position;
+			Vector2 start = _handle [0].node.nodeRect.center;
+			_parent.DrawBezier(start, end);
+			Handles.color = Color.white;
+			end.z = -100;
+			Handles.ConeCap(1,end,Quaternion.FromToRotation (Vector3.back, Vector3.left),18);
         }
     }
 }
